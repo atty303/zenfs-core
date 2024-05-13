@@ -43,7 +43,8 @@
 		"build": "node scripts/build.js --globalName=ZenFS --entry src/index.ts",
 		"build:docs": "typedoc --out docs --name ZenFS src/index.ts",
 		"dev": "npm run build -- --watch",
-		"prepublishOnly": "npm run build"
+		"prepublishOnly": "npm run build",
+		"prepare": "npm run build"
 	},
 	"dependencies": {
 		"@types/node": "^20.12.5",
