@@ -41,7 +41,7 @@ export interface Backend<FS extends FileSystem = FileSystem, TOptions extends ob
 	/**
 	 * Create a new instance of the backend
 	 */
-	create(options: TOptions): FS;
+	create(options: TOptions): FS | Promise<FS>;
 
 	/**
 	 * A name to identify the backend.
@@ -67,6 +67,8 @@ export interface Backend<FS extends FileSystem = FileSystem, TOptions extends ob
 }
 
 type OptionsOf<T extends Backend> = T extends Backend<FileSystem, infer TOptions> ? TOptions : never;
+
+type FilesystemOf<T extends Backend> = T extends Backend<infer FS> ? FS : never;
 
 /**
  * @internal
@@ -126,13 +128,6 @@ export async function checkOptions<T extends Backend>(backend: T, opts: Partial<
 		}
 		// Otherwise: All good!
 	}
-}
-
-export async function createBackend<B extends Backend>(backend: B, options: Partial<OptionsOf<B>> = {}): Promise<ReturnType<B['create']>> {
-	await checkOptions(backend, options);
-	const fs = <ReturnType<B['create']>>backend.create(options);
-	await fs.ready();
-	return fs;
 }
 
 /**

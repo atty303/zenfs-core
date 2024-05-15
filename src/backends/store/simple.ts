@@ -4,26 +4,17 @@ import { type Store, SyncTransaction } from './store.js';
 /**
  * An interface for simple synchronous stores that don't have special support for transactions and such.
  */
-export abstract class SimpleSyncStore implements Store {
-	public abstract name: string;
-	public async sync(): Promise<void> {}
-	public async clear(): Promise<void> {
-		this.clearSync();
-	}
-	public abstract clearSync(): void;
-	public abstract get(ino: Ino): Uint8Array | undefined;
-	public abstract put(ino: Ino, data: Uint8Array, overwrite: boolean): boolean;
-	public abstract delete(ino: Ino): void;
-	public beginTransaction(): SimpleTransaction {
-		return new SimpleTransaction(this);
-	}
+export interface SimpleSyncStore extends Store {
+	get(ino: Ino): Uint8Array | undefined;
+	set(ino: Ino, data: Uint8Array): void;
+	delete(ino: Ino): void;
 }
 
 /**
  * An interface for simple asynchronous stores that don't have special support for transactions and such.
  * This class adds caching at the store level.
  */
-export abstract class SimpleAsyncStore extends SimpleSyncStore {
+export abstract class SimpleAsyncStore implements SimpleSyncStore {
 	public abstract name: string;
 
 	protected cache: Map<Ino, Uint8Array> = new Map();
@@ -36,16 +27,12 @@ export abstract class SimpleAsyncStore extends SimpleSyncStore {
 		return this.cache.get(ino);
 	}
 
-	public put(ino: Ino, data: Uint8Array, overwrite: boolean): boolean {
-		if (!overwrite && this.cache.has(ino)) {
-			return false;
-		}
+	public set(ino: Ino, data: Uint8Array): void {
 		this.cache.set(ino, data);
-		this.queue.add(this._put(ino, data, overwrite));
-		return true;
+		this.queue.add(this._set(ino, data));
 	}
 
-	protected abstract _put(ino: Ino, data: Uint8Array, overwrite: boolean): Promise<boolean>;
+	protected abstract _set(ino: Ino, data: Uint8Array): Promise<void>;
 
 	public delete(ino: Ino): void {
 		this.cache.delete(ino);
@@ -72,7 +59,7 @@ export abstract class SimpleAsyncStore extends SimpleSyncStore {
 		}
 	}
 
-	public beginTransaction(): SimpleTransaction {
+	public transaction(): SimpleTransaction {
 		return new SimpleTransaction(this);
 	}
 }
@@ -103,9 +90,9 @@ export class SimpleTransaction extends SyncTransaction {
 		return val!;
 	}
 
-	public putSync(ino: Ino, data: Uint8Array, overwrite: boolean): boolean {
+	public setSync(ino: Ino, data: Uint8Array): void {
 		this.markModified(ino);
-		return this.store.put(ino, data, overwrite);
+		return this.store.set(ino, data);
 	}
 
 	public removeSync(ino: Ino): void {
@@ -126,7 +113,7 @@ export class SimpleTransaction extends SyncTransaction {
 				this.store.delete(key);
 			} else {
 				// Key existed. Store old value.
-				this.store.put(key, value, true);
+				this.store.set(key, value);
 			}
 		}
 	}
